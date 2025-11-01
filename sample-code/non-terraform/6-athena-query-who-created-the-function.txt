@@ -1,0 +1,54 @@
+# シンプルに何らかのファンクションが作成された履歴をクエリ
+SELECT
+    eventTime, 
+    userIdentity.principalId, 
+    requestParameters,
+    userIdentity.arn, 
+    eventSource, 
+    eventName
+FROM
+    <生成されたAthenaテーブル名>
+WHERE
+    eventName = 'CreateFunction20150331'
+ORDER BY
+    eventTime DESC
+LIMIT 1000;
+
+
+# 作成された日付とファンクション名で絞る場合
+SELECT
+    eventTime, 
+    userIdentity.principalId, 
+    requestParameters,
+    userIdentity.arn, 
+    eventSource, 
+    eventName
+FROM
+    <生成されたAthenaテーブル名>
+WHERE
+    eventName = 'CreateFunction20150331'
+    AND eventTime LIKE '2025-09-14%'
+    AND requestParameters LIKE '%<ファンクション名>%'
+ORDER BY
+    eventTime DESC
+LIMIT 1000;
+
+
+# 特定のファンクションについて更新/削除履歴も調べる
+SELECT
+    eventTime, 
+    userIdentity.principalId, 
+    requestParameters,
+    userIdentity.arn, 
+    eventSource, 
+    eventName
+FROM
+    <生成されたAthenaテーブル名>
+WHERE
+    (eventName = 'CreateFunction20150331' OR
+    eventName = 'UpdateFunctionCode20150331v2' OR
+    eventName = 'DeleteFunction20150331')
+    AND requestParameters LIKE '%<ファンクション名>%'
+ORDER BY
+    eventTime DESC
+LIMIT 1000;
