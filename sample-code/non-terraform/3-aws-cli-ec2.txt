@@ -1,0 +1,53 @@
+# IAMロールを作る
+## ロール作成と信頼ポリシー設定
+aws iam create-role \
+  --role-name work-ec2-role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Service": "ec2.amazonaws.com"
+        },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  }'
+
+## AmazonSSMManagedInstanceCore ポリシーのアタッチ
+aws iam attach-role-policy \
+  --role-name work-ec2-role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+## インスタンスプロファイル作成
+aws iam create-instance-profile \
+  --instance-profile-name work-ec2-role-iprf
+
+## インスタンスプロファイルとロールの関連付け
+aws iam add-role-to-instance-profile \
+  --instance-profile-name work-ec2-role-iprf \
+  --role-name work-ec2-role
+
+# セキュリティグループを作る
+aws ec2 create-security-group \
+  --group-name work-ec2-sg \
+  --description "Security group for work EC2" \
+  --vpc-id <VPC ID を記述>
+
+# 最新のAMIを取得する
+aws ec2 describe-images \
+  --region ap-northeast-1 \
+  --owners amazon \
+  --filters "Name=name,Values=al2023-ami-2023.8.*kernel-6.1-x86_64" \
+  --query  "reverse(sort_by(Images, &CreationDate))[*].[ImageId,Name]"
+
+
+# EC2インスタンスを起動
+aws ec2 run-instances \
+  --image-id <上のコマンドで取得した最新のAMIのAMI ID を記述> \
+  --instance-type t3.micro \
+  --iam-instance-profile Name=work-ec2-role-iprf \
+  --network-interfaces "DeviceIndex=0,SubnetId=<配置するサブネットID を記述>,AssociatePublicIpAddress=true,Groups=<上のコマンドで出力されるセキュリティグループID>"  \
+  --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":10,"VolumeType":"gp3","DeleteOnTermination":true}}]' \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=work-ec2}]'

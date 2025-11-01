@@ -1,0 +1,65 @@
+# Auroraクラスターを復元する
+aws rds restore-db-cluster-from-snapshot \
+  --region ap-northeast-1 \
+  --db-cluster-identifier samp02a-aurora-cluster \
+  --snapshot-identifier <スナップショットの識別子> \
+  --engine aurora-mysql \
+  --engine-version 8.0.mysql_aurora.3.10.0 \
+  --db-cluster-parameter-group-name samp02-aurora-mysql8-parameter-group \
+  --kms-key-id <KMSキーのARN> \
+  --db-subnet-group-name samp02-aurora-db-subnet-group \
+  --vpc-security-group-ids <セキュリティグループID> \
+  --no-deletion-protection \
+  --copy-tags-to-snapshot \
+  --port 3306 \
+  --enable-cloudwatch-logs-exports audit error general slowquery \
+  --no-enable-iam-database-authentication \
+  --tags Key=Environment,Value=dev Key=Name,Value=samp02a-aurora-cluster  Key=Project,Value=samp2-pj
+
+# 1台めのインスタンス（ライターインスタンス）を作成する
+aws rds create-db-instance \
+  --region ap-northeast-1 \
+  --db-cluster-identifier samp02a-aurora-cluster \
+  --db-instance-identifier samp02a-aurora-instance-1 \
+  --db-instance-class db.t3.medium \
+  --engine aurora-mysql \
+  --db-parameter-group-name samp02-aurora-mysql8-db-parameter-group \
+  --availability-zone ap-northeast-1a \
+  --no-auto-minor-version-upgrade \
+  --preferred-maintenance-window sat:15:30-sat:16:00 \
+  --tags Key=Environment,Value=dev Key=Name,Value=samp02a-aurora-instance-1  Key=Project,Value=samp2-pj
+
+# 2台めのインスタンス（リーダーインスタンス）を作成する
+aws rds create-db-instance \
+  --region ap-northeast-1 \
+  --db-cluster-identifier samp02a-aurora-cluster \
+  --db-instance-identifier samp02a-aurora-instance-2 \
+  --db-instance-class db.t3.medium \
+  --engine aurora-mysql \
+  --db-parameter-group-name samp02-aurora-mysql8-db-parameter-group \
+  --availability-zone ap-northeast-1c \
+  --no-auto-minor-version-upgrade \
+  --preferred-maintenance-window sat:16:00-sat:16:30 \
+  --tags Key=Environment,Value=dev Key=Name,Value=samp02a-aurora-instance-2  Key=Project,Value=samp2-pj
+
+# 3台目のインスタンス（リーダーインスタンス）を作成する
+aws rds create-db-instance \
+  --region ap-northeast-1 \
+  --db-cluster-identifier samp02a-aurora-cluster \
+  --db-instance-identifier samp02a-aurora-instance-3 \
+  --db-instance-class db.t3.medium \
+  --engine aurora-mysql \
+  --db-parameter-group-name samp02-aurora-mysql8-db-parameter-group \
+  --availability-zone ap-northeast-1d \
+  --no-auto-minor-version-upgrade \
+  --preferred-maintenance-window sat:16:30-sat:17:00 \
+  --tags Key=Environment,Value=dev Key=Name,Value=samp02a-aurora-instance-3  Key=Project,Value=samp2-pj
+
+# クラスターのメンテナンスウィンドウ・バックアップ設定を変更
+aws rds modify-db-cluster \
+  --region ap-northeast-1 \
+  --db-cluster-identifier samp02a-aurora-cluster \
+  --preferred-maintenance-window sat:15:00-sat:15:30 \
+  --backup-retention-period 7 \
+  --preferred-backup-window 20:00-20:30 \
+  --apply-immediately
